@@ -1,22 +1,22 @@
 /**
- * Activation & License Management Utility
- * Generates unique Machine Hardware IDs, computes cryptographic deterministic
- * activation keys, verifies license status, and manages persistent activation state.
+ * Activation & License Management Utility - CommessionalHal
+ * يدعم نظام التراخيص الرقمي المشفر RSA-SHA256 والبصمة الفريدة للجهاز
  */
+
+import { LicensePayload } from '../../lib/license-types';
 
 const STORAGE_KEYS = {
   MACHINE_ID: 'commission_app_machine_id',
   ACTIVATION_KEY: 'commission_app_activation_key',
   ACTIVATED_AT: 'commission_app_activated_at',
   LICENSE_TYPE: 'commission_app_license_type',
+  CUSTOMER_NAME: 'commission_app_customer_name',
+  EXPIRES_AT: 'commission_app_expires_at',
 };
 
-// Secret master salt for cryptographic key derivation
+// Secret master salt for fallback deterministic key derivation
 const MASTER_SALT = 'COMMISSION_AL_HAL_HALAB_SYRIA_2026_SECURE_SALT_9941';
 
-/**
- * Simple robust hash function for deterministic string hashing
- */
 function cyrb53(str: string, seed = 0): number {
   let h1 = 0xdeadbeef ^ seed;
   let h2 = 0x41c6ce57 ^ seed;
@@ -30,11 +30,8 @@ function cyrb53(str: string, seed = 0): number {
   return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 }
 
-/**
- * Format raw numbers into standard grouped hex/alphanumeric code
- */
 function formatCodeChunk(num: number, length = 4): string {
-  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'; // base32 without easily confused characters
+  const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
   let res = '';
   let n = Math.abs(num);
   for (let i = 0; i < length; i++) {
@@ -44,11 +41,12 @@ function formatCodeChunk(num: number, length = 4): string {
   return res;
 }
 
+export function cleanCode(code: string): string {
+  return (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
 /**
- * Get or generate persistent unique Machine / Hardware ID for this browser/device
- * Fully deterministic based on hardware properties so that it NEVER changes
- * across deactivations, reactivations, cache clears, or page reloads.
- * Format: KM-XXXX-XXXX-XXXX
+ * جلب بصمة الجهاز من السيرفر أو حسابها محلياً
  */
 export function getMachineId(): string {
   try {
@@ -57,7 +55,6 @@ export function getMachineId(): string {
       return existing.trim().toUpperCase();
     }
 
-    // Generate 100% deterministic unique machine code based on static hardware attributes
     const hardwareFingerprint = [
       navigator.userAgent || 'UA',
       navigator.platform || 'Win32',
@@ -80,14 +77,6 @@ export function getMachineId(): string {
 
     const machineId = `KM-${part1}-${part2}-${part3}`.toUpperCase();
     localStorage.setItem(STORAGE_KEYS.MACHINE_ID, machineId);
-
-    // Also persist machine ID to server file in background
-    fetch('/api/activation/machine-id', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ machineId }),
-    }).catch(() => {});
-
     return machineId;
   } catch {
     return 'KM-7482-9915-3841';
@@ -95,15 +84,98 @@ export function getMachineId(): string {
 }
 
 /**
- * Clean and standardize any machine ID or activation key string
+ * جلب البصمة الرسمية SHA-256 من السيرفر
  */
-export function cleanCode(code: string): string {
-  return (code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+export async function fetchServerMachineFingerprint(): Promise<string> {
+  try {
+    const res = await fetch('/api/activation/machine-id');
+    const data = await res.json();
+    if (data.success && data.fingerprint) {
+      localStorage.setItem(STORAGE_KEYS.MACHINE_ID, data.fingerprint);
+      return data.fingerprint;
+    }
+  } catch (err) {
+    console.error('Failed to fetch server machine fingerprint:', err);
+  }
+  return getMachineId();
 }
 
 /**
- * Generate official Activation Key corresponding to a given Machine ID
- * Format: ACT-XXXX-XXXX-XXXX
+ * فحص حالة التفعيل عبر السيرفر
+ */
+export async function checkServerLicenseStatus(): Promise<{
+  activated: boolean;
+  valid: boolean;
+  reason?: string;
+  license?: LicensePayload;
+  fingerprint?: string;
+}> {
+  try {
+    const res = await fetch('/api/activation/status');
+    const data = await res.json();
+    if (data.activated && data.valid && data.license) {
+      localStorage.setItem(STORAGE_KEYS.ACTIVATION_KEY, 'RSA_LICENSE_ACTIVE');
+      localStorage.setItem(STORAGE_KEYS.CUSTOMER_NAME, data.license.customerName || '');
+      localStorage.setItem(STORAGE_KEYS.ACTIVATED_AT, data.license.issuedAt || new Date().toISOString());
+      localStorage.setItem(STORAGE_KEYS.EXPIRES_AT, data.license.expiresAt || '');
+      localStorage.setItem(STORAGE_KEYS.LICENSE_TYPE, data.license.expiresAt ? `مؤقت حتى ${data.license.expiresAt.split('T')[0]}` : 'ترخيص دائم مدى الحياة');
+    }
+    return data;
+  } catch (err: any) {
+    return {
+      activated: false,
+      valid: false,
+      reason: err.message || 'تعذر الاتصال بالسيرفر للتحقق من الترخيص',
+    };
+  }
+}
+
+/**
+ * استيراد وتفعيل ملف ترخيص license.json
+ */
+export async function importLicense(content: string | object): Promise<{
+  success: boolean;
+  message?: string;
+  error?: string;
+  license?: LicensePayload;
+}> {
+  try {
+    const res = await fetch('/api/activation/import-license', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(typeof content === 'string' ? { licenseContent: content } : { licenseContent: JSON.stringify(content) }),
+    });
+
+    const data = await res.json();
+
+    if (data.success && data.license) {
+      localStorage.setItem(STORAGE_KEYS.ACTIVATION_KEY, 'RSA_LICENSE_ACTIVE');
+      localStorage.setItem(STORAGE_KEYS.CUSTOMER_NAME, data.license.customerName || '');
+      localStorage.setItem(STORAGE_KEYS.ACTIVATED_AT, data.license.issuedAt || new Date().toISOString());
+      localStorage.setItem(STORAGE_KEYS.EXPIRES_AT, data.license.expiresAt || '');
+      localStorage.setItem(STORAGE_KEYS.LICENSE_TYPE, data.license.expiresAt ? `مؤقت حتى ${data.license.expiresAt.split('T')[0]}` : 'ترخيص دائم مدى الحياة');
+      return {
+        success: true,
+        message: data.message || 'تم تفعيل البرنامج بنجاح!',
+        license: data.license,
+      };
+    }
+
+    return {
+      success: false,
+      error: data.error || 'فشل التحقق من ملف الترخيص',
+      license: data.license,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || 'حدث خطأ أثناء إرسال ملف الترخيص إلى السيرفر',
+    };
+  }
+}
+
+/**
+ * توليد مفتاح سريع (للأدوات السابقة)
  */
 export function generateActivationKey(machineId: string, licenseType: 'lifetime' | 'annual' = 'lifetime'): string {
   const cleanId = cleanCode(machineId);
@@ -125,106 +197,36 @@ export function generateActivationKey(machineId: string, licenseType: 'lifetime'
 }
 
 /**
- * Validate an activation key against a machine ID
+ * التحقق من المفتاح السريع
  */
 export function validateActivationKey(machineId: string, activationKey: string): { isValid: boolean; error?: string } {
   const cleanInputKey = cleanCode(activationKey);
   const cleanMachId = cleanCode(machineId);
 
-  if (!cleanMachId) {
-    return { isValid: false, error: 'كود الجهاز غير صالح' };
-  }
+  if (!cleanMachId) return { isValid: false, error: 'كود الجهاز غير صالح' };
+  if (!cleanInputKey) return { isValid: false, error: 'يرجى إدخال رمز التفعيل' };
 
-  if (!cleanInputKey) {
-    return { isValid: false, error: 'يرجى إدخال رمز التفعيل' };
-  }
-
-  // Check lifetime key
-  const expectedLifetime = cleanCode(generateActivationKey(machineId, 'lifetime'));
-  if (cleanInputKey === expectedLifetime) {
-    return { isValid: true };
-  }
-
-  // Check annual key
-  const expectedAnnual = cleanCode(generateActivationKey(machineId, 'annual'));
-  if (cleanInputKey === expectedAnnual) {
-    return { isValid: true };
-  }
-
-  // Universal Master Override Key for system emergency or recovery
-  const masterOverride = cleanCode(`ACT-MASTER-${cleanMachId.slice(0, 6)}`);
-  if (cleanInputKey === masterOverride) {
-    return { isValid: true };
-  }
+  if (cleanInputKey === cleanCode(generateActivationKey(machineId, 'lifetime'))) return { isValid: true };
+  if (cleanInputKey === cleanCode(generateActivationKey(machineId, 'annual'))) return { isValid: true };
+  if (cleanInputKey === cleanCode(`ACT-MASTER-${cleanMachId.slice(0, 6)}`)) return { isValid: true };
 
   return { isValid: false, error: 'رمز التفعيل غير مطابق لكود هذا الجهاز' };
 }
 
 /**
- * External File Activation Sync Helpers (Saves key on disk outside browser)
- */
-export async function readActivationFromFile(): Promise<{ success: boolean; data?: any; filePath?: string }> {
-  try {
-    const res = await fetch('/api/activation/read');
-    const result = await res.json();
-    if (result.success && result.data && result.data.activationKey) {
-      // Sync to localStorage
-      if (result.data.machineId) localStorage.setItem(STORAGE_KEYS.MACHINE_ID, result.data.machineId);
-      localStorage.setItem(STORAGE_KEYS.ACTIVATION_KEY, result.data.activationKey);
-      if (result.data.activatedAt) localStorage.setItem(STORAGE_KEYS.ACTIVATED_AT, result.data.activatedAt);
-      if (result.data.licenseType) localStorage.setItem(STORAGE_KEYS.LICENSE_TYPE, result.data.licenseType);
-    }
-    return result;
-  } catch (err) {
-    return { success: false };
-  }
-}
-
-export async function saveActivationToFile(key: string, machineId: string, licenseType = 'ترخيص دائم'): Promise<{ success: boolean; filePath?: string; message?: string }> {
-  try {
-    const res = await fetch('/api/activation/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        key,
-        machineId,
-        licenseType,
-        activatedAt: new Date().toISOString(),
-      }),
-    });
-    return await res.json();
-  } catch (err: any) {
-    return { success: false, message: err.message };
-  }
-}
-
-export async function clearActivationFile(): Promise<{ success: boolean }> {
-  try {
-    const res = await fetch('/api/activation/clear', { method: 'POST' });
-    return await res.json();
-  } catch {
-    return { success: false };
-  }
-}
-
-/**
- * Check if the application is currently activated
+ * هل التطبيق مفعل حالياً
  */
 export function isAppActivated(): boolean {
   try {
     const savedKey = localStorage.getItem(STORAGE_KEYS.ACTIVATION_KEY);
-    if (!savedKey) return false;
-
-    const currentMachId = getMachineId();
-    const validation = validateActivationKey(currentMachId, savedKey);
-    return validation.isValid;
+    return Boolean(savedKey && savedKey.length > 0);
   } catch {
     return false;
   }
 }
 
 /**
- * Activate the application with the given activation key
+ * تفعيل التطبيق محلياً
  */
 export function activateApp(activationKey: string): { success: boolean; message: string } {
   const currentMachId = getMachineId();
@@ -236,12 +238,8 @@ export function activateApp(activationKey: string): { success: boolean; message:
       localStorage.setItem(STORAGE_KEYS.ACTIVATION_KEY, cleanKey);
       localStorage.setItem(STORAGE_KEYS.ACTIVATED_AT, new Date().toISOString());
       localStorage.setItem(STORAGE_KEYS.LICENSE_TYPE, 'ترخيص دائم');
-
-      // Save to external disk file outside browser
-      saveActivationToFile(cleanKey, currentMachId, 'ترخيص دائم');
-
-      return { success: true, message: 'تم تفعيل البرنامج بنجاح وحفظ الكود في مجلد خارجي مستقل! أهلاً بك.' };
-    } catch (err) {
+      return { success: true, message: 'تم تفعيل البرنامج بنجاح!' };
+    } catch {
       return { success: false, message: 'حدث خطأ أثناء حفظ التفعيل' };
     }
   }
@@ -249,27 +247,43 @@ export function activateApp(activationKey: string): { success: boolean; message:
   return { success: false, message: validation.error || 'رمز التفعيل غير صالح' };
 }
 
+export async function readActivationFromFile(): Promise<{ success: boolean; data?: any; filePath?: string }> {
+  try {
+    const status = await checkServerLicenseStatus();
+    if (status.activated && status.valid) {
+      return {
+        success: true,
+        data: status.license,
+      };
+    }
+    return { success: false };
+  } catch {
+    return { success: false };
+  }
+}
+
 /**
- * Deactivate / Lock the application
+ * إلغاء التفعيل
  */
-export function deactivateApp(): void {
+export async function deactivateApp(): Promise<void> {
   try {
     localStorage.removeItem(STORAGE_KEYS.ACTIVATION_KEY);
     localStorage.removeItem(STORAGE_KEYS.ACTIVATED_AT);
     localStorage.removeItem(STORAGE_KEYS.LICENSE_TYPE);
-    clearActivationFile();
+    localStorage.removeItem(STORAGE_KEYS.CUSTOMER_NAME);
+    localStorage.removeItem(STORAGE_KEYS.EXPIRES_AT);
+    await fetch('/api/activation/clear', { method: 'POST' }).catch(() => {});
   } catch (err) {
     console.error('Failed to deactivate app', err);
   }
 }
 
-/**
- * Get comprehensive activation details
- */
 export function getActivationDetails() {
   const machineId = getMachineId();
   const activationKey = localStorage.getItem(STORAGE_KEYS.ACTIVATION_KEY);
   const activatedAt = localStorage.getItem(STORAGE_KEYS.ACTIVATED_AT);
+  const customerName = localStorage.getItem(STORAGE_KEYS.CUSTOMER_NAME) || '';
+  const expiresAt = localStorage.getItem(STORAGE_KEYS.EXPIRES_AT) || '';
   const licenseType = localStorage.getItem(STORAGE_KEYS.LICENSE_TYPE) || 'ترخيص دائم';
   const activated = isAppActivated();
 
@@ -278,6 +292,8 @@ export function getActivationDetails() {
     machineId,
     activationKey,
     activatedAt,
+    customerName,
+    expiresAt,
     licenseType,
   };
 }

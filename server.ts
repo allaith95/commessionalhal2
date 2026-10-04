@@ -4,6 +4,7 @@ import { Client, Pool } from 'pg';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import activationRoutes from './server/activation-routes';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +26,9 @@ const PORT = Number(process.env.PORT) || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: '25mb' }));
+
+// Mount Activation & Licensing API routes
+app.use('/api/activation', activationRoutes);
 
 // Active PostgreSQL connection config
 let activePgConfig: {
@@ -128,123 +132,6 @@ function formatPgError(err: any, host: string, port: number = 5432, user: string
     tip: 'تحقق من صحة بيانات السيرفر وكلمة السر والشبكة.',
   };
 }
-
-// --- External File Activation Persistence Endpoints ---
-
-const MACHINE_ID_FILE_PATH = path.join(ACTIVATION_FILE_DIR, 'machine_id.json');
-
-// 0. Get or Persist Permanent Machine ID
-app.get('/api/activation/machine-id', (req: Request, res: Response) => {
-  try {
-    if (fs.existsSync(MACHINE_ID_FILE_PATH)) {
-      const content = fs.readFileSync(MACHINE_ID_FILE_PATH, 'utf8');
-      const data = JSON.parse(content);
-      if (data && data.machineId) {
-        return res.json({ success: true, machineId: data.machineId });
-      }
-    }
-    return res.json({ success: false, machineId: null });
-  } catch (err: any) {
-    return res.json({ success: false, error: err.message });
-  }
-});
-
-app.post('/api/activation/machine-id', (req: Request, res: Response) => {
-  try {
-    const { machineId } = req.body;
-    if (!machineId) return res.status(400).json({ success: false, error: 'machineId مطلوب' });
-
-    if (!fs.existsSync(ACTIVATION_FILE_DIR)) {
-      fs.mkdirSync(ACTIVATION_FILE_DIR, { recursive: true });
-    }
-
-    if (!fs.existsSync(MACHINE_ID_FILE_PATH)) {
-      fs.writeFileSync(MACHINE_ID_FILE_PATH, JSON.stringify({ machineId: String(machineId).trim().toUpperCase(), createdAt: new Date().toISOString() }, null, 2), 'utf8');
-    }
-    return res.json({ success: true, machineId: String(machineId).trim().toUpperCase() });
-  } catch (err: any) {
-    return res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 1. Read Activation Key from Disk File (config/activation_license.json)
-app.get('/api/activation/read', (req: Request, res: Response) => {
-  try {
-    if (fs.existsSync(ACTIVATION_FILE_PATH)) {
-      const content = fs.readFileSync(ACTIVATION_FILE_PATH, 'utf8');
-      const data = JSON.parse(content);
-      return res.json({
-        success: true,
-        data,
-        filePath: 'config/activation_license.json',
-      });
-    }
-    return res.json({
-      success: false,
-      data: null,
-      filePath: 'config/activation_license.json',
-    });
-  } catch (err: any) {
-    return res.json({
-      success: false,
-      error: err.message,
-      filePath: 'config/activation_license.json',
-    });
-  }
-});
-
-// 2. Save Activation Key to Disk File (config/activation_license.json)
-app.post('/api/activation/save', (req: Request, res: Response) => {
-  try {
-    const { key, machineId, licenseType, activatedAt } = req.body;
-    if (!key) {
-      return res.status(400).json({ success: false, error: 'رمز التفعيل مطلوب' });
-    }
-
-    const payload = {
-      activationKey: String(key).trim().toUpperCase(),
-      machineId: String(machineId || '').trim().toUpperCase(),
-      licenseType: licenseType || 'ترخيص دائم',
-      activatedAt: activatedAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    if (!fs.existsSync(ACTIVATION_FILE_DIR)) {
-      fs.mkdirSync(ACTIVATION_FILE_DIR, { recursive: true });
-    }
-
-    fs.writeFileSync(ACTIVATION_FILE_PATH, JSON.stringify(payload, null, 2), 'utf8');
-    return res.json({
-      success: true,
-      message: 'تم حفظ كود التفعيل بنجاح في ملف خارجي على القرص (config/activation_license.json)',
-      filePath: 'config/activation_license.json',
-      data: payload,
-    });
-  } catch (err: any) {
-    return res.status(500).json({
-      success: false,
-      error: err.message || 'فشل كتابة ملف التفعيل على القرص',
-    });
-  }
-});
-
-// 3. Clear Activation File from Disk
-app.post('/api/activation/clear', (req: Request, res: Response) => {
-  try {
-    if (fs.existsSync(ACTIVATION_FILE_PATH)) {
-      fs.unlinkSync(ACTIVATION_FILE_PATH);
-    }
-    return res.json({
-      success: true,
-      message: 'تم مسح ملف التفعيل من القرص بنجاح',
-    });
-  } catch (err: any) {
-    return res.status(500).json({
-      success: false,
-      error: err.message,
-    });
-  }
-});
 
 function getPool(config: {
   host: string;

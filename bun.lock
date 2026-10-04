@@ -8,7 +8,8 @@
         "cors": "^2.8.6",
         "express": "^5.2.1",
         "lucide-react": "^0.546.0",
-        "pg": "^8.23.0",
+        "node-machine-id": "^1.1.12",
+        "pg": "^8.13.3",
         "react": "^19.0.1",
         "react-dom": "^19.0.1",
       },
@@ -17,7 +18,7 @@
         "@types/cors": "^2.8.19",
         "@types/express": "^5.0.6",
         "@types/node": "^22.14.0",
-        "@types/pg": "^8.23.1",
+        "@types/pg": "^8.11.11",
         "@vitejs/plugin-react": "^5.0.4",
         "tailwindcss": "^4.1.14",
         "tsx": "^4.23.15",
@@ -751,6 +752,8 @@
     "nanoid": ["nanoid@3.3.19", "", { "bin": { "nanoid": "bin/nanoid.cjs" } }, "sha512-Y2tUNy4ouw6tq5oDSKeQYGOyhkUBhNOcGV/02KC+6kd9eDGqdZd++mjMiIDilrBYvjEnCYvVtsuHCuP+okSfug=="],
 
     "negotiator": ["negotiator@1.1.0", "", { "dependencies": { "content-type": "^2.1.0" } }, "sha512-NMPBRMJgiQHjbd8phG3Vebdx4kZ1H121rbl5IkMqeOsahptB9BKo/d7oJ3zTXqTgagn2bWlNSXkh0QUGM31RYg=="],
+
+    "node-machine-id": ["node-machine-id@1.1.12", "", {}, "sha512-QNABxbrPa3qEIfrE6GOJ7BYIuignnJw7iQ2YPbc3Nla1HzRJjXzZOiikfF8m7eAMfichLt3M4VgLOetqgDmgGQ=="],
 
     "node-releases": ["node-releases@2.0.56", "", {}, "sha512-x0InOIyzgdk+eyaWaRJFH5snEtiImgBgblZ2CyPrLmqqcuMQkEvcDPHbzqbD8eDsSeJbVOjn+crzyzHaM4D+/A=="],
 

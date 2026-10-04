@@ -20,7 +20,7 @@ import {
 import { useApp } from '../../context/AppContext';
 
 export const HomeDashboard: React.FC<{ onOpenBackupModal: () => void }> = ({ onOpenBackupModal }) => {
-  const { setCurrentView } = useApp();
+  const { setCurrentView, currentDatabaseName } = useApp();
 
   // Current live time
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -504,11 +504,11 @@ export const HomeDashboard: React.FC<{ onOpenBackupModal: () => void }> = ({ onO
             </span>
           </div>
 
-          {/* System Title / Status */}
+          {/* Active File/Database Name */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
-              <span>نظام إدارة الكمسيون وسوق الهال</span>
+            <div className="flex items-center gap-2 text-xs md:text-sm font-semibold text-slate-200">
+              <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50 animate-pulse"></span>
+              <span className="font-bold text-emerald-300">{currentDatabaseName || 'الملف الافتراضي'}</span>
             </div>
           </div>
 
