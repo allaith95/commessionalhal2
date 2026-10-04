@@ -1,0 +1,6 @@
+{
+  "name": "تطبيق إدارة الكمسيون والحسابات",
+  "description": "نظام محاسبة متكامل لإدارة سوق الهال والكمسيون، الفواتير، السندات، الحسابات والمواد مع دعم الطباعة وإدارة قواعد البيانات",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

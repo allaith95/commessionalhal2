@@ -1,0 +1,77 @@
+# ==============================================================================
+# .htaccess Configuration for XAMPP / Apache
+# برنامج كمسيون إدارة أسواق الهال والحسابات (React SPA + Node Proxy)
+# ==============================================================================
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. تمرير طلبات الـ API إلى سيرفر Node.js / Express (إذا كان mod_proxy مفعلاً)
+  <IfModule mod_proxy.c>
+    RewriteRule ^api/(.*)$ http://127.0.0.1:3000/api/$1 [P,L]
+  </IfModule>
+
+  # 2. توجيه جميع المسارات إلى index.html لدعم React SPA (منع أخطاء 404 عند تحديث الصفحة)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_URI} !^/api/
+  RewriteRule ^ index.html [QSA,L]
+</IfModule>
+
+# ==============================================================================
+# تعيين الترميز الافتراضي وأنواع الملفات (MIME Types)
+# ==============================================================================
+AddDefaultCharset UTF-8
+AddCharset UTF-8 .html .css .js .json .svg .webmanifest
+
+<IfModule mod_mime.c>
+  AddType application/javascript js mjs
+  AddType application/json json
+  AddType application/manifest+json webmanifest
+  AddType image/svg+xml svg svgz
+  AddType font/woff woff
+  AddType font/woff2 woff2
+</IfModule>
+
+# ==============================================================================
+# ضغط الملفات لتسريع التحميل على شبكة XAMPP المحلية (GZIP Compression)
+# ==============================================================================
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/plain text/html text/xml text/css
+  AddOutputFilterByType DEFLATE application/javascript application/x-javascript
+  AddOutputFilterByType DEFLATE application/json application/manifest+json
+  AddOutputFilterByType DEFLATE image/svg+xml
+</IfModule>
+
+# ==============================================================================
+# الكاش والتخزين المؤقت للملفات الثابتة (Browser Caching)
+# ==============================================================================
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresDefault "access plus 1 month"
+  
+  # منع كاش ملف index.html للحصول على التحديثات دائماً
+  ExpiresByType text/html "access plus 0 seconds"
+  
+  # كاش طويل للملفات الثابتة والأيقونات
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/jpg "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType image/x-icon "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
+
+# ==============================================================================
+# ترويسات الأمان والحماية (Security Headers)
+# ==============================================================================
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-XSS-Protection "1; mode=block"
+</IfModule>
+
+# منع استعراض محتويات المجلدات (Directory Browsing)
+Options -Indexes

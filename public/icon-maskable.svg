@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="50%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#090d16"/>
+    </linearGradient>
+    <linearGradient id="primaryGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#0284c7"/>
+    </linearGradient>
+    <linearGradient id="accentGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="goldGradMask" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fcd34d"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Full-bleed background for maskable adaptive clipping -->
+  <rect width="512" height="512" fill="url(#bgGradMask)"/>
+
+  <!-- Centered safe-zone group scaled by 0.75 and centered around 256, 256 -->
+  <g transform="translate(64, 64) scale(0.75)">
+    <!-- Subtle glow / emblem backplate -->
+    <circle cx="256" cy="256" r="190" fill="url(#primaryGradMask)" opacity="0.1"/>
+    <circle cx="256" cy="256" r="150" fill="none" stroke="rgba(56,189,248,0.25)" stroke-width="3" stroke-dasharray="8 8"/>
+
+    <!-- Scale Central Pillar -->
+    <path d="M256 120 L256 360" stroke="url(#primaryGradMask)" stroke-width="14" stroke-linecap="round"/>
+    <path d="M190 380 L322 380" stroke="url(#primaryGradMask)" stroke-width="16" stroke-linecap="round"/>
+    <path d="M220 365 L292 365" stroke="url(#primaryGradMask)" stroke-width="12" stroke-linecap="round"/>
+    <circle cx="256" cy="116" r="16" fill="url(#goldGradMask)"/>
+    <circle cx="256" cy="116" r="8" fill="#ffffff" opacity="0.8"/>
+
+    <!-- Scale Horizontal Beam -->
+    <path d="M140 165 C 210 145, 302 145, 372 165" fill="none" stroke="url(#goldGradMask)" stroke-width="14" stroke-linecap="round"/>
+
+    <!-- Left Pan -->
+    <path d="M140 172 L110 248" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+    <path d="M140 172 L170 248" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+    <path d="M96 250 C 96 280, 184 280, 184 250 Z" fill="url(#primaryGradMask)"/>
+    <circle cx="132" cy="238" r="12" fill="url(#goldGradMask)"/>
+    <circle cx="148" cy="242" r="10" fill="url(#goldGradMask)"/>
+
+    <!-- Right Pan -->
+    <path d="M372 172 L342 238" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+    <path d="M372 172 L402 238" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+    <path d="M328 240 C 328 270, 416 270, 416 240 Z" fill="url(#accentGradMask)"/>
+    <circle cx="364" cy="226" r="12" fill="url(#goldGradMask)"/>
+    <circle cx="380" cy="232" r="10" fill="url(#goldGradMask)"/>
+
+    <!-- Ribbon -->
+    <rect x="186" y="300" width="140" height="42" rx="10" fill="#1e293b" stroke="url(#goldGradMask)" stroke-width="3"/>
+    <text x="256" y="327" font-family="'Cairo', sans-serif" font-weight="900" font-size="20" fill="#f8fafc" text-anchor="middle">كمسيون</text>
+  </g>
+</svg>
